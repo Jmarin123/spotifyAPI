@@ -22,11 +22,11 @@ body {
     justify-content: center;
 }
 
-#all-devices {
+
+.card {
     padding: 20px 40px;
     background-color: red;
     border: 2px solid;
-    border-radius: 20px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -46,6 +46,11 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
+}
+
+#albumImage {
+    width: 100px;
+    height: 100px;
 }
 
 label {

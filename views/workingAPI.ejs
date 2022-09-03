@@ -6,7 +6,6 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SpotifyAPI</title>
-    <script src="/javascript/pageJS.js"></script>
 </head>
 
 <body onload="onPageLoad()">
@@ -22,12 +21,42 @@
         </div>
     </div>
     <div id="devices-setup">
-        <div id="all-devices">
+        <div class="card" id="all-devices">
             <label for="devices">All Devices</label>
             <select name="devices" id="devices"></select>
             <input type="button" value="Search For Devices" onclick="refreshDevices()">
         </div>
+        <div class="card" id="all-playlists">
+            <label for="playlists">All Playlists</label>
+            <select name="playlists" id="playlists"></select>
+            <input type="button" value="Search For Playlists" onclick="refereshPlaylists()">
+        </div>
+
+        <div class="card" id="all-songs">
+            <label for="songs">All Songs</label>
+            <select name="songs" id="songs" onchange="changeAlbumSongs()"></select>
+            <input type="button" value="Referesh Tracks" onclick="refereshSongs()">
+        </div>
+        <div class="card" id="albums">
+            <label for="album">More Songs in Same Album</label>
+            <select name="album" id="album"></select>
+            <input type="button" value="Change song" onclick="newSongFromAlbum()">
+        </div>
+        <div class="card">
+            <div>
+                <input type="button" class="btn btn-dark" onclick="previous()" value="Prev">
+                <input type="button" class="btn btn-dark" onclick="play()" value="Play">
+                <input type="button" class="btn btn-dark" onclick="pause()" value="Pause">
+                <input type="button" class="btn btn-dark" onclick="next()" value="Next">
+            </div>
+            <div id="song-info">
+                <img id="albumImage"></img>
+                <p id="trackTitle"></p>
+                <p id="trackArtist"></p>
+            </div>
+        </div>
     </div>
+    <script src="/javascript/pageJS.js"></script>
     <link rel="stylesheet" href="/stylesheet/workingCSS.css">
 </body>
 
