@@ -10,6 +10,7 @@ const PREVIOUS = 'https://api.spotify.com/v1/me/player/previous';
 const NEXT = 'https://api.spotify.com/v1/me/player/next';
 const TRACK = 'https://api.spotify.com/v1/tracks';
 const ALBUMS = 'https://api.spotify.com/v1/albums'
+const CURRENTLYPLAYING = 'https://api.spotify.com/v1/me/player/currently-playing';
 
 let redirect_uri = 'http://localhost:3000/'
 let client_id = '';
@@ -81,8 +82,13 @@ function handlePlaylistsResponse() {
     if (this.status == 200) {
         var data = JSON.parse(this.responseText);
         removeAllItems("playlists");
-        data.items.forEach(item => addItems(item, 'playlists'));
+        removeAllItems("listed-playlists");
+        data.items.forEach(item => {
+            addItems(item, 'playlists')
+            addItems(item, 'listed-playlists');
+        });
         document.getElementById('playlists').value = currentPlaylist;
+        document.getElementById('listed-playlists').value = currentPlaylist;
     }
     else if (this.status == 401) {
         refreshAccessToken()
@@ -125,7 +131,7 @@ const requestAuthorization = () => {
     url += "&response_type=code";
     url += "&redirect_uri=" + encodeURI(redirect_uri);
     url += "&show_dialog=true";
-    url += "&scope=user-read-private user-read-email user-modify-playback-state user-read-playback-position user-library-read streaming user-read-playback-state user-read-recently-played playlist-read-private";
+    url += "&scope=user-read-private user-read-email user-modify-playback-state user-read-playback-position user-library-read streaming user-read-playback-state user-read-recently-played playlist-read-private playlist-modify-public playlist-modify-private";
     window.location.href = url;
 }
 
@@ -136,15 +142,12 @@ function play() {
         let songIndex = song.selectedIndex;
         console.log("this is song index " + songIndex);
         song = song.options[song.selectedIndex].value;
-        let album = document.getElementById("album").value;
         let playlist_id = currentPlaylist.value;
         let body = {};
-        if (album.length > 0) {
-            body.context_uri = album;
-        }
-        else {
-            body.context_uri = "spotify:playlist:" + playlist_id;
-        }
+
+
+        body.context_uri = "spotify:playlist:" + playlist_id;
+
         body.context_uri = "spotify:playlist:" + playlist_id;
         body.offset = {};
         body.offset.position_ms = 0;
@@ -153,6 +156,11 @@ function play() {
     } else {
         callApi("PUT", PLAY + "?device_id=" + getCurrentDevice(), null, handleApiResponse);
     }
+}
+
+function setCurrentPlaylist() {
+    let playlist = document.getElementById('playlists');
+    currentPlaylist = playlist.options[playlist.selectedIndex].value;
 }
 
 function next() {
@@ -195,7 +203,7 @@ function getCurrentDevice() {
 function handleApiResponse() {
     if (this.status == 200 || this.status == 204) {
         console.log(this.responseText);
-        currentlyPlaying();
+        setTimeout(currentlyPlaying, 100);
     }
     else if (this.status == 401) {
         refreshAccessToken()
@@ -223,11 +231,11 @@ function handleCurrentlyPlayingResponse() {
             document.getElementById('devices').value = currentDevice;
         }
 
-        if (data.context != null) {
-            currentPlaylist = data.context.uri;
-            currentPlaylist = currentPlaylist.substring(currentPlaylist.lastIndexOf(":") + 1, currentPlaylist.length);
-            document.getElementById('playlists').value = currentPlaylist;
-        }
+        // if (data.context != null) {
+        //     currentPlaylist = data.context.uri;
+        //     currentPlaylist = currentPlaylist.substring(currentPlaylist.lastIndexOf(":") + 1, currentPlaylist.length);
+        //     document.getElementById('playlists').value = currentPlaylist;
+        // }
     }
     else if (this.status == 204) {
 
@@ -263,6 +271,8 @@ function handlePlaylistResponse() {
         let data = JSON.parse(this.responseText);
         removeAllItems("playlists");
         data.items.forEach(item => addItems(item, 'playlists'));
+        removeAllItems("listed-playlists");
+        data.items.forEach(item => addItems(item, 'listed-playlists'));
     }
     else if (this.status == 401) {
         refreshAccessToken();
@@ -287,19 +297,35 @@ function handleDevicesResponse() {
         alert(this.responseText);
     }
 }
-
-
-function changeAlbumSongs() {
-    let song = document.getElementById("songs");
-    if (song) {
-        song = song.options[song.selectedIndex].value;
-        callApi("GET", TRACK + `/${song}`, null, handleChangeAlbumSong);
+function createPlaylist() {
+    callApi('GET', 'https://api.spotify.com/v1/me', null, handlePlaylist);
+}
+function handlePlaylist() {
+    if (this.status == 200) {
+        let playlistName = document.getElementById('nameForPlaylist').value;
+        let data = JSON.parse(this.responseText);
+        if (!playlistName) {
+            playlistName = 'default name';
+        }
+        let body = {}
+        body.name = playlistName;
+        body.description = document.getElementById('descriptionForPlaylist').value;
+        document.getElementById('publicPlaylist').checked ? body.public = true : body.public = false;
+        callApi('POST', 'https://api.spotify.com/v1/users/' + data.id + '/playlists', JSON.stringify(body), handleCreatePlaylist)
+    } else if (this.status == 401) {
+        refreshAccessToken();
+    } else {
+        console.log(this.responseText);
+        alert(this.responseText);
     }
 }
-function handleChangeAlbumSong() {
-    if (this.status == 200) {
-        let data = JSON.parse(this.responseText);
-        callApi('GET', ALBUMS + `/${data.album.id}` + '?MARKET=ES', null, handListAlbumSongs)
+
+function handleCreatePlaylist() {
+    if (this.status == 201) {
+        document.getElementById('nameForPlaylist').value = '';
+        document.getElementById('descriptionForPlaylist').value = ''
+        document.getElementById('publicPlaylist').checked = false;
+        refreshPlaylists();
     }
     else if (this.status == 401) {
         refreshAccessToken();
@@ -309,19 +335,21 @@ function handleChangeAlbumSong() {
         alert(this.responseText);
     }
 }
-function handListAlbumSongs() {
+
+
+function addSongToPlaylist() {
+    callApi('GET', CURRENTLYPLAYING, null, handleCurrentlyPlayingForPlaylist)
+}
+
+function handleCurrentlyPlayingForPlaylist() {
     if (this.status == 200) {
         let data = JSON.parse(this.responseText);
-        console.log(data);
-        removeAllItems("album");
-        document.getElementById('albums').value = data.id;
-        document.getElementById('albums').name = data.name;
-        if (data.album_type == 'single') {
-            console.log('single albume');
-            addItems(data, 'album');
-        } else {
-            console.log('multiple albums');
-            data.tracks.items.forEach(item => addItems(item, 'album'));
+        let selectingPlaylist = document.getElementById('listed-playlists');
+        if (selectingPlaylist.options.length > 0) {
+            let body = {}
+            body.uris = [];
+            body.uris.push('spotify:track:' + data.item.id);
+            callApi('POST', 'https://api.spotify.com/v1/playlists/' + selectingPlaylist.options[selectingPlaylist.selectedIndex].value + '/tracks', JSON.stringify(body), handlePostForPlaylist);
         }
     }
     else if (this.status == 401) {
@@ -332,23 +360,12 @@ function handListAlbumSongs() {
         alert(this.responseText);
     }
 }
-function newSongFromAlbum() {
-    let songInAlbum = document.getElementById("album");
-    callApi('GET', TRACK + '/' + songInAlbum.options[songInAlbum.selectedIndex].value, null, handleChangeInAlbumList)
-}
-function handleChangeInAlbumList() {
-    if (this.status == 200) {
-        let data = JSON.parse(this.responseText);
-        console.log(data);
-        removeAllItems("songs");
-        addItems(data, 'songs');
-        play();
-        changeAlbumSongs();
-    }
-    else if (this.status == 401) {
+function handlePostForPlaylist() {
+    if (this.status == 201) {
+        refereshSongs();
+    } else if (this.status == 401) {
         refreshAccessToken();
-    }
-    else {
+    } else {
         console.log(this.responseText);
         alert(this.responseText);
     }
